@@ -306,3 +306,30 @@ def test_pod_logs_can_read_the_previous_container(monkeypatch) -> None:
 
     assert k8s.pod_logs("ns", "agent", container="agent", previous=True) == "old\n"
     assert seen["previous"] is True
+
+
+def test_strict_pod_logs_raise_instead_of_returning_the_unavailable_text(monkeypatch) -> None:
+    def api_failure(**kwargs):
+        raise k8s.ApiException(status=404, reason="not found")
+
+    monkeypatch.setattr(
+        k8s.client, "CoreV1Api", lambda: SimpleNamespace(read_namespaced_pod_log=api_failure)
+    )
+    with pytest.raises(k8s.ApiException):
+        k8s.pod_logs("ns", "missing", strict=True)
+
+    class Dropped:
+        @property
+        def data(self):
+            raise k8s.urllib3.exceptions.ProtocolError("connection broken")
+
+        def release_conn(self):
+            pass
+
+    monkeypatch.setattr(
+        k8s.client,
+        "CoreV1Api",
+        lambda: SimpleNamespace(read_namespaced_pod_log=lambda **kwargs: Dropped()),
+    )
+    with pytest.raises(k8s.urllib3.exceptions.ProtocolError):
+        k8s.pod_logs("ns", "agent", strict=True)

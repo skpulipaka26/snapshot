@@ -225,7 +225,11 @@ def assert_no_restarts_or_panics(ctx: UpgradeContext) -> None:
                 if status.restart_count:
                     problems.append(f"{pod.metadata.name}/{status.name} restarted {status.restart_count}x")
                 logs = k8s.pod_logs(
-                    ctx.config.namespace, pod.metadata.name, tail_lines=LOG_TAIL_LINES, container=status.name
+                    ctx.config.namespace,
+                    pod.metadata.name,
+                    tail_lines=LOG_TAIL_LINES,
+                    container=status.name,
+                    strict=True,
                 )
                 if "panic:" in logs:
                     problems.append(f"{pod.metadata.name}/{status.name} logged a panic")

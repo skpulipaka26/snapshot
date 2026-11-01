@@ -316,6 +316,7 @@ def pod_logs(
     tail_lines: int | None = 120,
     container: str | None = None,
     previous: bool = False,
+    strict: bool = False,
 ) -> str:
     for attempt in range(POD_LOG_ATTEMPTS):
         try:
@@ -332,9 +333,13 @@ def pod_logs(
             finally:
                 response.release_conn()
         except ApiException as exc:
+            if strict:
+                raise
             return f"<logs unavailable: {api_error_detail(exc)}>"
         except urllib3.exceptions.HTTPError as exc:
             if attempt == POD_LOG_ATTEMPTS - 1:
+                if strict:
+                    raise
                 return f"<logs unavailable: {type(exc).__name__}: {exc}>"
     raise AssertionError("unreachable")
 
